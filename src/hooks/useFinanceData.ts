@@ -96,16 +96,16 @@ export const useFinanceData = () => {
         };
         
       } catch (rpcError) {
-        // Priority 2: Fallback to postings table directly (same data source as Sales)
-        console.warn('Finance RPC function failed, using postings table fallback:', rpcError);
+        // Priority 2: Fallback to postings_fbs table directly (as suggested by Supabase)
+        console.warn('Finance RPC function failed, using postings_fbs table fallback:', rpcError);
         
         // Build query based on date_type filter (use order_date as primary date column)
         const dateColumn = 'order_date'; // Use the actual date column from postings table
         
         // Use simple date formatting like Sales tabs (consistent approach)
         let postingsQuery = supabase
-          .from('postings')
-          .select('price, qty, commission_product')
+          .from('postings_fbs')
+          .select('price, quantity, commission_amount')
           .gte(dateColumn, formatMoscowDate(filters.dateFrom))
           .lte(dateColumn, formatMoscowDate(filters.dateTo))
           .neq('status', 'cancelled');
@@ -124,19 +124,19 @@ export const useFinanceData = () => {
         const { data: postingsData, error: postingsError } = await postingsQuery;
         
         if (postingsError) {
-          console.error('Failed to load Finance data from both RPC and postings table:', postingsError);
+          console.error('Failed to load Finance data from both RPC and postings_fbs table:', postingsError);
           throw postingsError;
         }
         
         // Calculate using exact same methodology as Sales with actual column names
         const totalSales = postingsData?.reduce((sum, item) => {
           const price = toNumber(item.price) || 0;
-          const quantity = toNumber(item.qty) || 0; // Use actual column name from postings table
+          const quantity = toNumber(item.quantity) || 0; // Use quantity column from postings_fbs table
           return sum + (price * quantity);
         }, 0) || 0;
         
         const totalCommissions = postingsData?.reduce((sum, item) => {
-          const commission = toNumber(item.commission_product) || 0; // Use actual column name from postings table
+          const commission = toNumber(item.commission_amount) || 0; // Use commission_amount column from postings_fbs table
           return sum + Math.abs(commission);
         }, 0) || 0;
         
